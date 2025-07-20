@@ -760,6 +760,24 @@
       display: none;
     }
     
+    .import-gist-btn {
+      position: fixed;
+      bottom: 70px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 999;
+      border: none;
+    }
+    
     @keyframes pulse {
       0% { opacity: 1; }
       50% { opacity: 0.3; }
@@ -880,6 +898,9 @@
     <div class="no-results" id="noResults" style="display: none;">
       No se encontraron resultados. Prueba con otros filtros.
     </div>
+    
+    <!-- Botón fijo para importar desde Gist -->
+    <button class="import-gist-btn" id="fixedGistBtn" title="Importar desde Gist">G</button>
     
     <!-- Settings Modal -->
     <div class="modal" id="settingsModal">
@@ -1337,7 +1358,8 @@
       importExportTabs: document.querySelectorAll('.import-export-tab'),
       importExportContents: document.querySelectorAll('.import-export-content'),
       notification: document.getElementById('notification'),
-      scrollToTop: document.getElementById('scrollToTop')
+      scrollToTop: document.getElementById('scrollToTop'),
+      fixedGistBtn: document.getElementById('fixedGistBtn')
     };
 
     function init() {
@@ -1895,6 +1917,32 @@
       }
     }
 
+    async function importFromFixedGist() {
+      try {
+        const gistId = '80b0b2d2e20ed0a455b66303b468e90b';
+        const rawUrl = `https://gist.githubusercontent.com/T22V/${gistId}/raw`;
+        
+        const response = await fetch(rawUrl);
+        if (!response.ok) {
+          throw new Error('Error al obtener los datos del Gist');
+        }
+        
+        const data = await response.json();
+        if (!Array.isArray(data)) {
+          throw new Error('Los datos del Gist no son válidos');
+        }
+        
+        // Actualizar los enlaces con los datos importados
+        state.links = data;
+        saveSettings();
+        renderChannels();
+        showNotification('Datos importados correctamente desde el Gist');
+      } catch (error) {
+        showNotification(`Error al importar desde Gist: ${error.message}`, 'error');
+        console.error('Error al importar desde Gist:', error);
+      }
+    }
+
     function setupEventListeners() {
       document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.delete-btn');
@@ -2062,6 +2110,8 @@
       elements.cancelImportBtn.addEventListener('click', function() {
         elements.importLinksData.value = '';
       });
+      
+      elements.fixedGistBtn.addEventListener('click', importFromFixedGist);
       
       elements.addLinkBtn.addEventListener('click', function() {
         elements.linkUrl.value = '';
