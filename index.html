@@ -751,7 +751,7 @@
     }
     
     .channel-card--edit-mode {
-      cursor: move;
+      cursor: pointer;
       border: 2px dashed var(--warning);
     }
     
@@ -776,6 +776,32 @@
       box-shadow: 0 2px 10px rgba(0,0,0,0.2);
       z-index: 999;
       border: none;
+    }
+    
+    .save-edit-btn {
+      position: fixed;
+      bottom: 120px;
+      right: 20px;
+      width: 40px;
+      height: 40px;
+      border-radius: 50%;
+      background: var(--success);
+      color: white;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
+      z-index: 999;
+      border: none;
+      opacity: 0;
+      visibility: hidden;
+      transition: all 0.3s;
+    }
+    
+    .save-edit-btn--visible {
+      opacity: 1;
+      visibility: visible;
     }
     
     @keyframes pulse {
@@ -901,6 +927,9 @@
     
     <!-- Botón fijo para importar desde Gist -->
     <button class="import-gist-btn" id="fixedGistBtn" title="Importar desde Gist">G</button>
+    
+    <!-- Botón fijo para guardar cambios en modo edición -->
+    <button class="save-edit-btn" id="saveEditBtn" title="Guardar cambios">✓</button>
     
     <!-- Settings Modal -->
     <div class="modal" id="settingsModal">
@@ -1359,7 +1388,9 @@
       importExportContents: document.querySelectorAll('.import-export-content'),
       notification: document.getElementById('notification'),
       scrollToTop: document.getElementById('scrollToTop'),
-      fixedGistBtn: document.getElementById('fixedGistBtn')
+      fixedGistBtn: document.getElementById('fixedGistBtn'),
+      saveEditBtn: document.getElementById('saveEditBtn'),
+      playerSection: document.getElementById('playerSection')
     };
 
     function init() {
@@ -1553,7 +1584,10 @@
       });
       
       if (state.settings.editMode) {
-        setupDragAndDrop();
+        setupEditMode();
+        elements.saveEditBtn.classList.add('save-edit-btn--visible');
+      } else {
+        elements.saveEditBtn.classList.remove('save-edit-btn--visible');
       }
     }
 
@@ -1579,103 +1613,39 @@
       `;
     }
 
-    function setupDragAndDrop() {
+    function setupEditMode() {
       const channelCards = document.querySelectorAll('.channel-card');
       
       channelCards.forEach(card => {
-        card.draggable = true;
-        
-        card.addEventListener('dragstart', function(e) {
-          state.dragState.isDragging = true;
-          state.dragState.draggedItem = this;
-          state.dragState.startIndex = Array.from(this.parentNode.children).indexOf(this);
+        card.addEventListener('click', function(e) {
+          if (!state.settings.editMode) return;
           
-          e.dataTransfer.effectAllowed = 'move';
-          e.dataTransfer.setData('text/html', this.innerHTML);
+          const linkId = this.dataset.id;
+          const link = state.links.find(l => l.id === linkId);
           
-          setTimeout(() => {
-            this.classList.add('dragging');
-          }, 0);
-        });
-        
-        card.addEventListener('dragend', function() {
-          this.classList.remove('dragging');
-          state.dragState.isDragging = false;
-          state.dragState.draggedItem = null;
-        });
-        
-        card.addEventListener('dragover', function(e) {
-          e.preventDefault();
-          e.dataTransfer.dropEffect = 'move';
-          
-          const draggingCard = state.dragState.draggedItem;
-          if (draggingCard && draggingCard !== this) {
-            const rect = this.getBoundingClientRect();
-            const next = (e.clientY - rect.top) / (rect.bottom - rect.top) > 0.5;
+          if (state.dragState.isDragging) {
+            // Finalizar el arrastre
+            state.dragState.isDragging = false;
+            const draggedCard = state.dragState.draggedItem;
             
-            if (next) {
-              this.parentNode.insertBefore(draggingCard, this.nextSibling);
-            } else {
-              this.parentNode.insertBefore(draggingCard, this);
+            if (draggedCard && draggedCard !== this) {
+              const startIndex = state.links.findIndex(l => l.id === state.dragState.draggedItem.dataset.id);
+              const endIndex = state.links.findIndex(l => l.id === this.dataset.id);
+              
+              if (startIndex !== -1 && endIndex !== -1) {
+                const [movedLink] = state.links.splice(startIndex, 1);
+                state.links.splice(endIndex, 0, movedLink);
+                saveSettings();
+                renderChannels();
+              }
             }
-          }
-        });
-        
-        card.addEventListener('drop', function(e) {
-          e.preventDefault();
-          if (state.dragState.draggedItem !== this) {
-            const endIndex = Array.from(this.parentNode.children).indexOf(this);
-            reorderLinks(state.dragState.startIndex, endIndex);
+          } else {
+            // Iniciar el arrastre
+            state.dragState.isDragging = true;
+            state.dragState.draggedItem = this;
           }
         });
       });
-    }
-
-    function reorderLinks(oldIndex, newIndex) {
-      if (oldIndex === newIndex) return;
-      
-      const filteredLinks = state.links.filter(link => {
-        if (state.filters.searchText) {
-          const searchLower = state.filters.searchText.toLowerCase();
-          const matchesTitle = link.title.toLowerCase().includes(searchLower);
-          const matchesWebName = link.webName?.toLowerCase().includes(searchLower);
-          
-          if (!matchesTitle && !matchesWebName) {
-            return false;
-          }
-        }
-        
-        if (state.filters.type && link.type !== state.filters.type) {
-          return false;
-        }
-        
-        if (state.filters.sport && link.deporte !== state.filters.sport) {
-          return false;
-        }
-        
-        if (state.filters.favoritesOnly && !link.favorito) {
-          return false;
-        }
-        
-        return true;
-      });
-      
-      const movedLink = filteredLinks[oldIndex];
-      
-      const originalIndex = state.links.findIndex(l => l.id === movedLink.id);
-      state.links.splice(originalIndex, 1);
-      
-      let targetLink = filteredLinks[newIndex];
-      let targetIndex = state.links.findIndex(l => l.id === targetLink.id);
-      
-      if (oldIndex < newIndex) {
-        targetIndex += 1;
-      }
-      
-      state.links.splice(targetIndex, 0, movedLink);
-      
-      saveSettings();
-      renderChannels();
     }
 
     function getTypeDisplay(type) {
@@ -1711,32 +1681,7 @@
       elements.channelInfo.textContent = link.title;
       elements.favoriteBtn.classList.toggle('control-btn--active', link.favorito);
       
-      elements.videoFrame.srcdoc = `
-        <!DOCTYPE html>
-        <html>
-        <head>
-          <style>
-            body { 
-              background: black; 
-              color: white; 
-              display: flex; 
-              justify-content: center; 
-              align-items: center; 
-              height: 100%; 
-              margin: 0; 
-              font-family: Arial, sans-serif;
-            }
-          </style>
-        </head>
-        <body>
-          <div style="text-align: center;">
-            <h2>${link.title}</h2>
-            <p>${link.webName || ''}</p>
-            <p>En la aplicación real, esto mostraría el stream de ${link.link}</p>
-          </div>
-        </body>
-        </html>
-      `;
+      elements.videoFrame.src = link.link;
       
       elements.playerContainer.classList.add('player-container--active');
       elements.playerControls.classList.add('player-controls--active');
@@ -1932,7 +1877,6 @@
           throw new Error('Los datos del Gist no son válidos');
         }
         
-        // Actualizar los enlaces con los datos importados
         state.links = data;
         saveSettings();
         renderChannels();
@@ -2112,6 +2056,14 @@
       });
       
       elements.fixedGistBtn.addEventListener('click', importFromFixedGist);
+      
+      elements.saveEditBtn.addEventListener('click', function() {
+        state.settings.editMode = false;
+        elements.editModeToggle.checked = false;
+        saveSettings();
+        renderChannels();
+        showNotification('Cambios guardados');
+      });
       
       elements.addLinkBtn.addEventListener('click', function() {
         elements.linkUrl.value = '';
