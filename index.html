@@ -1398,6 +1398,14 @@
       renderChannels();
       setupEventListeners();
       checkScrollPosition();
+      window.addEventListener('storage', handleStorageEvent);
+    }
+
+    function handleStorageEvent(event) {
+      if (event.key === 'daddyLiveHDLinks' || event.key === 'daddyLiveHDSettings') {
+        loadSettings();
+        renderChannels();
+      }
     }
 
     function loadSettings() {
@@ -1624,7 +1632,6 @@
           const link = state.links.find(l => l.id === linkId);
           
           if (state.dragState.isDragging) {
-            // Finalizar el arrastre
             state.dragState.isDragging = false;
             const draggedCard = state.dragState.draggedItem;
             
@@ -1640,7 +1647,6 @@
               }
             }
           } else {
-            // Iniciar el arrastre
             state.dragState.isDragging = true;
             state.dragState.draggedItem = this;
           }
