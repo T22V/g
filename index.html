@@ -1224,11 +1224,6 @@
         </div>
         
         <div class="form-group">
-          <label class="form-label">Etiquetas (separadas por comas)</label>
-          <input type="text" class="form-input" id="editEtiquetas" placeholder="Ej: HD, 4K, Deportes">
-        </div>
-        
-        <div class="form-group">
           <label class="form-label">Favorito</label>
           <label class="switch">
             <input type="checkbox" id="editFavorito">
@@ -1305,6 +1300,10 @@
         linkId: null
       },
       clearButtonState: {
+        clickCount: 0,
+        lastClickTime: 0
+      },
+      filterButtonState: {
         clickCount: 0,
         lastClickTime: 0
       },
@@ -1877,6 +1876,50 @@
       }
     }
 
+    function handleFilterButtonClick(buttonId) {
+      const now = Date.now();
+      
+      if (now - state.filterButtonState.lastClickTime > 1000) {
+        state.filterButtonState.clickCount = 0;
+      }
+      
+      state.filterButtonState.clickCount++;
+      state.filterButtonState.lastClickTime = now;
+      
+      if (state.filterButtonState.clickCount >= 3) {
+        elements.linkUrl.value = '';
+        elements.linkTitle.value = '';
+        elements.webName.value = '';
+        elements.linkSport.value = 'Fútbol';
+        elements.linkLanguage.value = 'ES';
+        elements.linkType.value = buttonId === 'filterWeb' ? 'web' : 
+                                buttonId === 'filterAcestream' ? 'acestream' : 'source';
+        elements.linkColor.value = '#2563eb';
+        elements.mostrarIcono.checked = false;
+        elements.mostrarMulti.checked = false;
+        elements.etiquetas.value = '';
+        
+        document.querySelectorAll('.star').forEach(star => {
+          star.classList.remove('active');
+        });
+        
+        elements.addLinkModal.classList.add('modal--active');
+        state.filterButtonState.clickCount = 0;
+      } else {
+        // Comportamiento normal del botón
+        if (buttonId === 'filterWeb') {
+          state.filters.type = 'web';
+        } else if (buttonId === 'filterAcestream') {
+          state.filters.type = 'acestream';
+        } else if (buttonId === 'filterSources') {
+          state.filters.type = 'source';
+        }
+        
+        updateTypeFilterButtons();
+        renderChannels();
+      }
+    }
+
     async function importFromGist() {
       try {
         const gistId = '80b0b2d2e20ed0a455b66303b468e90b';
@@ -1971,21 +2014,15 @@
       });
       
       elements.filterWeb.addEventListener('click', function() {
-        state.filters.type = 'web';
-        updateTypeFilterButtons();
-        renderChannels();
+        handleFilterButtonClick('filterWeb');
       });
       
       elements.filterAcestream.addEventListener('click', function() {
-        state.filters.type = 'acestream';
-        updateTypeFilterButtons();
-        renderChannels();
+        handleFilterButtonClick('filterAcestream');
       });
       
       elements.filterSources.addEventListener('click', function() {
-        state.filters.type = 'source';
-        updateTypeFilterButtons();
-        renderChannels();
+        handleFilterButtonClick('filterSources');
       });
       
       elements.clearFilters.addEventListener('click', handleClearFiltersClick);
