@@ -761,21 +761,18 @@
     }
     
     .import-gist-btn {
-      position: fixed;
-      bottom: 70px;
-      right: 20px;
-      width: 40px;
-      height: 40px;
-      border-radius: 50%;
       background: var(--primary);
       color: white;
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      cursor: pointer;
-      box-shadow: 0 2px 10px rgba(0,0,0,0.2);
-      z-index: 999;
       border: none;
+      padding: 0.6rem 1rem;
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      font-weight: 500;
+      transition: all 0.2s;
+    }
+    
+    .import-gist-btn:hover {
+      background: var(--primary-dark);
     }
     
     .save-edit-btn {
@@ -910,8 +907,8 @@
         <button class="emoji-filter-btn" data-filter="Fútbol" title="Fútbol">⚽</button>
         <button class="emoji-filter-btn" data-filter="Baloncesto" title="Baloncesto">🏀</button>
         <button class="emoji-filter-btn" data-filter="Motorsport" title="Motorsport">🏁</button>
-        <button class="emoji-filter-btn" data-filter="España" title="España">🇪🇸</button>
-        <button class="emoji-filter-btn" data-filter="UK" title="UK">🇬🇧</button>
+        <button class="emoji-filter-btn" data-filter="ES" title="Español">🇪🇸</button>
+        <button class="emoji-filter-btn" data-filter="EN" title="Inglés">🇬🇧</button>
       </div>
     </div>
     
@@ -924,9 +921,6 @@
     <div class="no-results" id="noResults" style="display: none;">
       No se encontraron resultados. Prueba con otros filtros.
     </div>
-    
-    <!-- Botón fijo para importar desde Gist -->
-    <button class="import-gist-btn" id="fixedGistBtn" title="Importar desde Gist">G</button>
     
     <!-- Botón fijo para guardar cambios en modo edición -->
     <button class="save-edit-btn" id="saveEditBtn" title="Guardar cambios">✓</button>
@@ -1006,6 +1000,7 @@
           <div class="import-export-tabs">
             <div class="import-export-tab import-export-tab--active" data-tab="export">Exportar</div>
             <div class="import-export-tab" data-tab="import">Importar</div>
+            <div class="import-export-tab" data-tab="github">GitHub</div>
           </div>
           
           <div class="import-export-content import-export-content--active" id="exportTab">
@@ -1018,6 +1013,13 @@
             <div class="form-actions">
               <button class="btn btn-secondary" id="cancelImportBtn">Cancelar</button>
               <button class="btn btn-primary" id="importLinksBtn">Importar Datos</button>
+            </div>
+          </div>
+          
+          <div class="import-export-content" id="githubTab">
+            <div class="form-group">
+              <p>Importar lista de canales desde un Gist de GitHub:</p>
+              <button class="import-gist-btn" id="importGistBtn">Importar desde Gist</button>
             </div>
           </div>
         </div>
@@ -1288,6 +1290,7 @@
         searchText: '',
         type: 'web',
         sport: null,
+        language: null,
         favoritesOnly: false
       },
       currentPlayer: {
@@ -1350,6 +1353,7 @@
       importLinksData: document.getElementById('importLinksData'),
       copyExportLinksBtn: document.getElementById('copyExportLinksBtn'),
       importLinksBtn: document.getElementById('importLinksBtn'),
+      importGistBtn: document.getElementById('importGistBtn'),
       cancelImportBtn: document.getElementById('cancelImportBtn'),
       saveSettingsBtn: document.getElementById('saveSettingsBtn'),
       closeSettingsModal: document.getElementById('closeSettingsModal'),
@@ -1388,7 +1392,6 @@
       importExportContents: document.querySelectorAll('.import-export-content'),
       notification: document.getElementById('notification'),
       scrollToTop: document.getElementById('scrollToTop'),
-      fixedGistBtn: document.getElementById('fixedGistBtn'),
       saveEditBtn: document.getElementById('saveEditBtn'),
       playerSection: document.getElementById('playerSection')
     };
@@ -1495,6 +1498,7 @@
         searchText: '',
         type: 'web',
         sport: null,
+        language: null,
         favoritesOnly: false
       };
       
@@ -1533,6 +1537,10 @@
         }
         
         if (state.filters.sport && link.deporte !== state.filters.sport) {
+          return false;
+        }
+        
+        if (state.filters.language && link.idioma !== state.filters.language) {
           return false;
         }
         
@@ -1856,6 +1864,7 @@
           searchText: '',
           type: 'web',
           sport: null,
+          language: null,
           favoritesOnly: false
         };
         
@@ -1868,7 +1877,7 @@
       }
     }
 
-    async function importFromFixedGist() {
+    async function importFromGist() {
       try {
         const gistId = '80b0b2d2e20ed0a455b66303b468e90b';
         const rawUrl = `https://gist.githubusercontent.com/T22V/${gistId}/raw`;
@@ -1883,10 +1892,19 @@
           throw new Error('Los datos del Gist no son válidos');
         }
         
-        state.links = data;
-        saveSettings();
-        renderChannels();
-        showNotification('Datos importados correctamente desde el Gist');
+        // Filtrar enlaces que ya existen
+        const newLinks = data.filter(newLink => 
+          !state.links.some(existingLink => existingLink.link === newLink.link)
+        );
+        
+        if (newLinks.length > 0) {
+          state.links = [...state.links, ...newLinks];
+          saveSettings();
+          renderChannels();
+          showNotification(`Se añadieron ${newLinks.length} nuevos enlaces desde el Gist`);
+        } else {
+          showNotification('No se encontraron enlaces nuevos para importar', 'info');
+        }
       } catch (error) {
         showNotification(`Error al importar desde Gist: ${error.message}`, 'error');
         console.error('Error al importar desde Gist:', error);
@@ -1975,12 +1993,20 @@
       elements.emojiFilters.addEventListener('click', function(e) {
         const emojiBtn = e.target.closest('.emoji-filter-btn');
         if (emojiBtn) {
-          const sport = emojiBtn.dataset.filter;
+          const filterType = emojiBtn.dataset.filter;
           
-          if (state.filters.sport === sport) {
-            state.filters.sport = null;
+          if (filterType === 'ES' || filterType === 'EN') {
+            if (state.filters.language === filterType) {
+              state.filters.language = null;
+            } else {
+              state.filters.language = filterType;
+            }
           } else {
-            state.filters.sport = sport;
+            if (state.filters.sport === filterType) {
+              state.filters.sport = null;
+            } else {
+              state.filters.sport = filterType;
+            }
           }
           
           updateEmojiFilterButtons();
@@ -2046,22 +2072,34 @@
       elements.importLinksBtn.addEventListener('click', function() {
         try {
           const data = JSON.parse(elements.importLinksData.value);
-          state.links = Array.isArray(data) ? data : [];
+          if (!Array.isArray(data)) {
+            throw new Error('Formato de datos inválido');
+          }
           
-          saveSettings();
-          renderChannels();
-          closeSettingsModal();
-          showNotification('Datos importados correctamente');
+          // Filtrar enlaces que ya existen
+          const newLinks = data.filter(newLink => 
+            !state.links.some(existingLink => existingLink.link === newLink.link)
+          );
+          
+          if (newLinks.length > 0) {
+            state.links = [...state.links, ...newLinks];
+            saveSettings();
+            renderChannels();
+            closeSettingsModal();
+            showNotification(`Se añadieron ${newLinks.length} nuevos enlaces`);
+          } else {
+            showNotification('No se encontraron enlaces nuevos para importar', 'info');
+          }
         } catch (e) {
           showNotification('Error al importar datos: JSON inválido', 'error');
         }
       });
       
+      elements.importGistBtn.addEventListener('click', importFromGist);
+      
       elements.cancelImportBtn.addEventListener('click', function() {
         elements.importLinksData.value = '';
       });
-      
-      elements.fixedGistBtn.addEventListener('click', importFromFixedGist);
       
       elements.saveEditBtn.addEventListener('click', function() {
         state.settings.editMode = false;
@@ -2096,6 +2134,13 @@
       elements.saveLinkBtn.addEventListener('click', function() {
         if (!elements.linkUrl.value || !elements.linkTitle.value) {
           showNotification('URL y título son obligatorios', 'error');
+          return;
+        }
+        
+        // Verificar si la URL ya existe
+        const urlExists = state.links.some(link => link.link === elements.linkUrl.value);
+        if (urlExists) {
+          showNotification('Esta URL ya existe en la lista', 'error');
           return;
         }
         
@@ -2192,7 +2237,12 @@
 
     function updateEmojiFilterButtons() {
       document.querySelectorAll('.emoji-filter-btn').forEach(btn => {
-        btn.classList.toggle('emoji-filter-btn--active', btn.dataset.filter === state.filters.sport);
+        const filterType = btn.dataset.filter;
+        if (filterType === 'ES' || filterType === 'EN') {
+          btn.classList.toggle('emoji-filter-btn--active', state.filters.language === filterType);
+        } else {
+          btn.classList.toggle('emoji-filter-btn--active', state.filters.sport === filterType);
+        }
       });
     }
 
