@@ -724,6 +724,7 @@
       transition: opacity 0.2s;
       z-index: 10;
       border: none;
+      display: none;
     }
     
     .edit-btn {
@@ -743,21 +744,22 @@
       transition: opacity 0.2s;
       z-index: 10;
       border: none;
+      display: none;
     }
     
-    .channel-card:hover .delete-btn,
-    .channel-card:hover .edit-btn {
+    .channel-card--edit-mode .delete-btn,
+    .channel-card--edit-mode .edit-btn {
+      display: flex;
+    }
+    
+    .channel-card--edit-mode:hover .delete-btn,
+    .channel-card--edit-mode:hover .edit-btn {
       opacity: 1;
     }
     
     .channel-card--edit-mode {
       cursor: pointer;
       border: 2px dashed var(--warning);
-    }
-    
-    .channel-card--edit-mode .delete-btn,
-    .channel-card--edit-mode .edit-btn {
-      display: none;
     }
     
     .import-gist-btn {
