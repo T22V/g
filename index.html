@@ -1271,7 +1271,36 @@
 
   <script>
     const state = {
-      links: [],
+      links: [
+        {
+          id: '1',
+          link: 'https://example.com/stream1',
+          title: 'Canal 1',
+          webName: 'Movistar',
+          deporte: 'Fútbol',
+          type: 'web',
+          idioma: 'ES',
+          color: '#2563eb',
+          mostrarIcono: true,
+          mostrarMulti: false,
+          puntuacion: 4,
+          favorito: false
+        },
+        {
+          id: '2',
+          link: 'https://example.com/stream2',
+          title: 'Canal 2',
+          webName: 'DAZN',
+          deporte: 'F1',
+          type: 'web',
+          idioma: 'EN',
+          color: '#dc2626',
+          mostrarIcono: false,
+          mostrarMulti: true,
+          puntuacion: 3,
+          favorito: true
+        }
+      ],
       settings: {
         darkMode: false,
         primaryColor: '#2563eb',
@@ -1304,6 +1333,7 @@
         lastClickTime: 0
       },
       filterButtonState: {
+        lastClickedButton: null,
         clickCount: 0,
         lastClickTime: 0
       },
@@ -1380,7 +1410,6 @@
       editLinkColor: document.getElementById('editLinkColor'),
       editMostrarIcono: document.getElementById('editMostrarIcono'),
       editMostrarMulti: document.getElementById('editMostrarMulti'),
-      editEtiquetas: document.getElementById('editEtiquetas'),
       editFavorito: document.getElementById('editFavorito'),
       editRatingStars: document.getElementById('editRatingStars'),
       saveEditLinkBtn: document.getElementById('saveEditLinkBtn'),
@@ -1796,7 +1825,6 @@
       elements.editMostrarIcono.checked = link.mostrarIcono || false;
       elements.editMostrarMulti.checked = link.mostrarMulti || false;
       elements.editFavorito.checked = link.favorito || false;
-      elements.editEtiquetas.value = link.etiquetas ? link.etiquetas.join(', ') : '';
       
       document.querySelectorAll('#editRatingStars .star').forEach((star, index) => {
         if (index < (link.puntuacion || 3)) {
@@ -1821,10 +1849,6 @@
       const selectedStar = document.querySelector('#editRatingStars .star.active');
       const rating = selectedStar ? parseInt(selectedStar.dataset.value) : 3;
       
-      const tags = elements.editEtiquetas.value 
-        ? elements.editEtiquetas.value.split(',').map(tag => tag.trim()).filter(tag => tag)
-        : [];
-      
       link.link = elements.editLinkUrl.value;
       link.title = elements.editLinkTitle.value;
       link.webName = elements.editWebName.value || null;
@@ -1836,7 +1860,6 @@
       link.mostrarMulti = elements.editMostrarMulti.checked;
       link.favorito = elements.editFavorito.checked;
       link.puntuacion = rating;
-      link.etiquetas = tags;
       
       saveSettings();
       renderChannels();
@@ -1879,11 +1902,14 @@
     function handleFilterButtonClick(buttonId) {
       const now = Date.now();
       
-      if (now - state.filterButtonState.lastClickTime > 1000) {
-        state.filterButtonState.clickCount = 0;
+      if (now - state.filterButtonState.lastClickTime > 1000 || 
+          state.filterButtonState.lastClickedButton !== buttonId) {
+        state.filterButtonState.clickCount = 1;
+        state.filterButtonState.lastClickedButton = buttonId;
+      } else {
+        state.filterButtonState.clickCount++;
       }
       
-      state.filterButtonState.clickCount++;
       state.filterButtonState.lastClickTime = now;
       
       if (state.filterButtonState.clickCount >= 3) {
@@ -1897,7 +1923,6 @@
         elements.linkColor.value = '#2563eb';
         elements.mostrarIcono.checked = false;
         elements.mostrarMulti.checked = false;
-        elements.etiquetas.value = '';
         
         document.querySelectorAll('.star').forEach(star => {
           star.classList.remove('active');
@@ -1906,7 +1931,6 @@
         elements.addLinkModal.classList.add('modal--active');
         state.filterButtonState.clickCount = 0;
       } else {
-        // Comportamiento normal del botón
         if (buttonId === 'filterWeb') {
           state.filters.type = 'web';
         } else if (buttonId === 'filterAcestream') {
@@ -1935,7 +1959,6 @@
           throw new Error('Los datos del Gist no son válidos');
         }
         
-        // Filtrar enlaces que ya existen
         const newLinks = data.filter(newLink => 
           !state.links.some(existingLink => existingLink.link === newLink.link)
         );
@@ -2113,7 +2136,6 @@
             throw new Error('Formato de datos inválido');
           }
           
-          // Filtrar enlaces que ya existen
           const newLinks = data.filter(newLink => 
             !state.links.some(existingLink => existingLink.link === newLink.link)
           );
@@ -2156,7 +2178,6 @@
         elements.linkColor.value = '#2563eb';
         elements.mostrarIcono.checked = false;
         elements.mostrarMulti.checked = false;
-        elements.etiquetas.value = '';
         
         document.querySelectorAll('.star').forEach(star => {
           star.classList.remove('active');
@@ -2174,7 +2195,6 @@
           return;
         }
         
-        // Verificar si la URL ya existe
         const urlExists = state.links.some(link => link.link === elements.linkUrl.value);
         if (urlExists) {
           showNotification('Esta URL ya existe en la lista', 'error');
@@ -2183,10 +2203,6 @@
         
         const selectedStar = document.querySelector('.star.active');
         const rating = selectedStar ? parseInt(selectedStar.dataset.value) : 3;
-        
-        const tags = elements.etiquetas.value 
-          ? elements.etiquetas.value.split(',').map(tag => tag.trim()).filter(tag => tag)
-          : [];
         
         const newLink = {
           id: Date.now().toString(),
@@ -2200,7 +2216,6 @@
           mostrarIcono: elements.mostrarIcono.checked,
           mostrarMulti: elements.mostrarMulti.checked,
           puntuacion: rating,
-          etiquetas: tags,
           favorito: false
         };
         
