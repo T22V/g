@@ -682,6 +682,7 @@
       cursor: pointer;
       font-size: 1.5rem;
       color: #ccc;
+      transition: color 0.2s;
     }
     
     .star.active {
@@ -1215,6 +1216,14 @@
         </div>
         
         <div class="form-group">
+          <label class="form-label">Favorito</label>
+          <label class="switch">
+            <input type="checkbox" id="editFavorito">
+            <span class="slider round"></span>
+          </label>
+        </div>
+        
+        <div class="form-group">
           <label class="form-label">Puntuación (1-5)</label>
           <div class="rating-stars" id="editRatingStars">
             <span class="star" data-value="1">★</span>
@@ -1223,14 +1232,6 @@
             <span class="star" data-value="4">★</span>
             <span class="star" data-value="5">★</span>
           </div>
-        </div>
-        
-        <div class="form-group">
-          <label class="form-label">Favorito</label>
-          <label class="switch">
-            <input type="checkbox" id="editFavorito">
-            <span class="slider round"></span>
-          </label>
         </div>
         
         <div class="form-actions">
@@ -1828,13 +1829,17 @@
       elements.editMostrarMulti.checked = link.mostrarMulti || false;
       elements.editFavorito.checked = link.favorito || false;
       
-      document.querySelectorAll('#editRatingStars .star').forEach((star, index) => {
-        if (index < (link.puntuacion || 3)) {
-          star.classList.add('active');
-        } else {
-          star.classList.remove('active');
-        }
+      // Actualizar estrellas de puntuación
+      const stars = elements.editRatingStars.querySelectorAll('.star');
+      stars.forEach(star => {
+        star.classList.remove('active');
       });
+      
+      for (let i = 0; i < (link.puntuacion || 0); i++) {
+        if (stars[i]) {
+          stars[i].classList.add('active');
+        }
+      }
       
       elements.editLinkModal.classList.add('modal--active');
     }
@@ -1848,8 +1853,8 @@
         return;
       }
       
-      const selectedStar = document.querySelector('#editRatingStars .star.active');
-      const rating = selectedStar ? parseInt(selectedStar.dataset.value) : 3;
+      const activeStars = elements.editRatingStars.querySelectorAll('.star.active');
+      const rating = activeStars.length;
       
       link.link = elements.editLinkUrl.value;
       link.title = elements.editLinkTitle.value;
@@ -1926,7 +1931,7 @@
         elements.mostrarIcono.checked = false;
         elements.mostrarMulti.checked = false;
         
-        document.querySelectorAll('.star').forEach(star => {
+        elements.ratingStars.querySelectorAll('.star').forEach(star => {
           star.classList.remove('active');
         });
         
@@ -2181,7 +2186,7 @@
         elements.mostrarIcono.checked = false;
         elements.mostrarMulti.checked = false;
         
-        document.querySelectorAll('.star').forEach(star => {
+        elements.ratingStars.querySelectorAll('.star').forEach(star => {
           star.classList.remove('active');
         });
         
@@ -2203,8 +2208,8 @@
           return;
         }
         
-        const selectedStar = document.querySelector('.star.active');
-        const rating = selectedStar ? parseInt(selectedStar.dataset.value) : 3;
+        const activeStars = elements.ratingStars.querySelectorAll('.star.active');
+        const rating = activeStars.length;
         
         const newLink = {
           id: Date.now().toString(),
@@ -2233,7 +2238,8 @@
         if (star) {
           const value = parseInt(star.dataset.value);
           
-          document.querySelectorAll('.star').forEach((s, index) => {
+          const stars = elements.ratingStars.querySelectorAll('.star');
+          stars.forEach((s, index) => {
             if (index < value) {
               s.classList.add('active');
             } else {
@@ -2253,7 +2259,8 @@
         if (star) {
           const value = parseInt(star.dataset.value);
           
-          document.querySelectorAll('#editRatingStars .star').forEach((s, index) => {
+          const stars = elements.editRatingStars.querySelectorAll('.star');
+          stars.forEach((s, index) => {
             if (index < value) {
               s.classList.add('active');
             } else {
