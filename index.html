@@ -1344,6 +1344,10 @@
         isDragging: false,
         draggedItem: null,
         startIndex: null
+      },
+      touchState: {
+        startX: 0,
+        startY: 0
       }
     };
 
@@ -1829,7 +1833,6 @@
       elements.editMostrarMulti.checked = link.mostrarMulti || false;
       elements.editFavorito.checked = link.favorito || false;
       
-      // Actualizar estrellas de puntuación
       const stars = elements.editRatingStars.querySelectorAll('.star');
       stars.forEach(star => {
         star.classList.remove('active');
@@ -1951,6 +1954,49 @@
       }
     }
 
+    function handleSwipe(direction) {
+      const filterOrder = ['web', 'acestream', 'source'];
+      const currentIndex = filterOrder.indexOf(state.filters.type);
+      let newIndex;
+      
+      if (direction === 'left') {
+        newIndex = (currentIndex + 1) % filterOrder.length;
+      } else if (direction === 'right') {
+        newIndex = (currentIndex - 1 + filterOrder.length) % filterOrder.length;
+      } else {
+        return;
+      }
+      
+      state.filters.type = filterOrder[newIndex];
+      updateTypeFilterButtons();
+      renderChannels();
+    }
+
+    function setupTouchEvents() {
+      document.addEventListener('touchstart', function(e) {
+        state.touchState.startX = e.changedTouches[0].screenX;
+        state.touchState.startY = e.changedTouches[0].screenY;
+      }, { passive: true });
+      
+      document.addEventListener('touchend', function(e) {
+        const endX = e.changedTouches[0].screenX;
+        const endY = e.changedTouches[0].screenY;
+        const diffX = endX - state.touchState.startX;
+        const diffY = endY - state.touchState.startY;
+        
+        // Solo considerar deslizamiento horizontal si el movimiento vertical es menor
+        if (Math.abs(diffX) > Math.abs(diffY)) {
+          if (Math.abs(diffX) > 50) { // Umbral mínimo para considerar un deslizamiento
+            if (diffX > 0) {
+              handleSwipe('right');
+            } else {
+              handleSwipe('left');
+            }
+          }
+        }
+      }, { passive: true });
+    }
+
     async function importFromGist() {
       try {
         const gistId = '80b0b2d2e20ed0a455b66303b468e90b';
@@ -1985,6 +2031,8 @@
     }
 
     function setupEventListeners() {
+      setupTouchEvents();
+      
       document.addEventListener('click', function(e) {
         const deleteBtn = e.target.closest('.delete-btn');
         if (deleteBtn) {
